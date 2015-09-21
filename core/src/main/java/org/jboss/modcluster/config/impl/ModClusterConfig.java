@@ -47,6 +47,7 @@ import org.jboss.modcluster.config.NodeConfiguration;
 import org.jboss.modcluster.config.ProxyConfiguration;
 import org.jboss.modcluster.config.SSLConfiguration;
 import org.jboss.modcluster.config.SessionDrainingStrategy;
+import org.jboss.modcluster.container.Connector;
 
 /**
  * Java bean implementing the various configuration interfaces.
@@ -748,5 +749,57 @@ public class ModClusterConfig implements BalancerConfiguration, MCMPHandlerConfi
 
     public void setMaxAttempts(int maxAttempts) {
         this.maxAttempts = maxAttempts;
+    }
+
+    private Map<InetSocketAddress,InetSocketAddress> portMapSockets;
+
+    @Override
+    public Map<InetSocketAddress,InetSocketAddress> getPortMapSockets() { return this.portMapSockets; }
+
+    public void setPortMapSockets(Map<InetSocketAddress, InetSocketAddress> portMapSockets) {
+        this.portMapSockets = portMapSockets;
+    }
+
+    @Override
+    public String getPortMap() {
+        if (this.portMapSockets.isEmpty()) {
+            return null;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        for (Map.Entry<InetSocketAddress,InetSocketAddress> entry : this.portMapSockets.entrySet()) {
+            if (builder.length() > 0) {
+                builder.append(",");
+            }
+
+            InetSocketAddress listenSocket = entry.getKey();
+            InetSocketAddress exposedSocket = entry.getValue();
+
+            builder.append(listenSocket.toString());
+            builder.append("=");
+            builder.append(exposedSocket.toString());
+        }
+        return builder.toString();
+    }
+
+    public void setPortMap(String portMap) {
+        if ((portMap == null) || (portMap.length() == 0)) {
+            this.portMapSockets = Collections.emptyMap();
+        } else {
+            this.portMapSockets = new HashMap<InetSocketAddress, InetSocketAddress>();
+            String[] map = portMap.split(",");
+            for (String entry : map) {
+                try {
+                    String[] tokens = entry.split("=", 2);
+                    String listenToken = tokens[0].trim();
+                    String exposedToken = tokens[1].trim();
+                    InetSocketAddress listenSocket = Utils.parseSocketAddress(listenToken, Connector.Type.AJP.getDefaultPort());
+                    InetSocketAddress exposedSocket = Utils.parseSocketAddress(exposedToken, Connector.Type.AJP.getDefaultPort());
+                    this.portMapSockets.put(listenSocket, exposedSocket);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(e);
+                }
+            }
+        }
     }
 }

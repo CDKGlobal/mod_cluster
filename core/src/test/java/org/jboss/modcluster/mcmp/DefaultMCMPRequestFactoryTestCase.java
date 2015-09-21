@@ -25,11 +25,9 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.TreeSet;
+import java.util.*;
 
 import org.jboss.modcluster.container.Connector;
 import org.jboss.modcluster.container.Context;
@@ -210,6 +208,73 @@ public class DefaultMCMPRequestFactoryTestCase {
         assertEquals("true", parameters.get("Reversed"));
         assertEquals(InetAddress.getLocalHost().getHostName(), parameters.get("Host"));
         assertEquals("100", parameters.get("Port"));
+        assertEquals("ajp", parameters.get("Type"));
+        assertEquals("lb-group", parameters.get("Domain"));
+        assertEquals("On", parameters.get("flushpackets"));
+        assertEquals("1", parameters.get("flushwait"));
+        assertEquals("2", parameters.get("ping"));
+        assertEquals("3", parameters.get("smax"));
+        assertEquals("4", parameters.get("ttl"));
+        assertEquals("5", parameters.get("Timeout"));
+        assertEquals("S", parameters.get("Balancer"));
+        assertEquals("No", parameters.get("StickySession"));
+        assertEquals("Yes", parameters.get("StickySessionRemove"));
+        assertEquals("No", parameters.get("StickySessionForce"));
+        assertEquals("6", parameters.get("WaitWorker"));
+        assertEquals("7", parameters.get("Maxattempts"));
+    }
+
+    @Test
+    public void createPortMappedConfigRequest() throws Exception {
+        Engine engine = mock(Engine.class);
+        NodeConfiguration nodeConfig = mock(NodeConfiguration.class);
+        BalancerConfiguration balancerConfig = mock(BalancerConfiguration.class);
+        Connector connector = mock(Connector.class);
+
+        when(engine.getProxyConnector()).thenReturn(connector);
+        when(connector.isReverse()).thenReturn(true);
+        when(connector.getAddress()).thenReturn(InetAddress.getLocalHost());
+        when(connector.getPort()).thenReturn(100);
+        when(connector.getType()).thenReturn(Connector.Type.AJP);
+
+        when(nodeConfig.getLoadBalancingGroup()).thenReturn("lb-group");
+        when(nodeConfig.getFlushPackets()).thenReturn(Boolean.TRUE);
+        when(nodeConfig.getFlushWait()).thenReturn(1);
+        when(nodeConfig.getPing()).thenReturn(2);
+        when(nodeConfig.getSmax()).thenReturn(3);
+        when(nodeConfig.getTtl()).thenReturn(4);
+        when(nodeConfig.getNodeTimeout()).thenReturn(5);
+        when(nodeConfig.getBalancer()).thenReturn("S");
+
+        Map<InetSocketAddress,InetSocketAddress> portMapSockets = new HashMap<InetSocketAddress, InetSocketAddress>();
+        InetSocketAddress listenSocket = new InetSocketAddress(InetAddress.getLocalHost().getHostName(), 100);
+        InetSocketAddress exposedSocket = new InetSocketAddress("test.example.com", 1234);
+        portMapSockets.put(listenSocket, exposedSocket);
+        when(nodeConfig.getPortMapSockets()).thenReturn(portMapSockets);
+
+        when(engine.getSessionCookieName()).thenReturn(DefaultMCMPRequestFactory.DEFAULT_SESSION_COOKIE_NAME);
+        when(engine.getSessionParameterName()).thenReturn(DefaultMCMPRequestFactory.DEFAULT_SESSION_PARAMETER_NAME);
+
+        when(balancerConfig.getStickySession()).thenReturn(Boolean.FALSE);
+        when(balancerConfig.getStickySessionRemove()).thenReturn(Boolean.TRUE);
+        when(balancerConfig.getStickySessionForce()).thenReturn(Boolean.FALSE);
+        when(balancerConfig.getWorkerTimeout()).thenReturn(6);
+        when(balancerConfig.getMaxAttempts()).thenReturn(7);
+
+        when(engine.getJvmRoute()).thenReturn("host1");
+
+        MCMPRequest request = this.factory.createConfigRequest(engine, nodeConfig, balancerConfig);
+
+        assertSame(MCMPRequestType.CONFIG, request.getRequestType());
+        assertFalse(request.isWildcard());
+        assertEquals("host1", request.getJvmRoute());
+
+        Map<String, String> parameters = request.getParameters();
+
+        assertEquals(17, parameters.size());
+        assertEquals("true", parameters.get("Reversed"));
+        assertEquals("test.example.com", parameters.get("Host"));
+        assertEquals("1234", parameters.get("Port"));
         assertEquals("ajp", parameters.get("Type"));
         assertEquals("lb-group", parameters.get("Domain"));
         assertEquals("On", parameters.get("flushpackets"));

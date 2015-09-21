@@ -21,6 +21,9 @@
  */
 package org.jboss.modcluster.config;
 
+import java.net.InetSocketAddress;
+import java.util.Map;
+
 public interface NodeConfiguration {
     /**
      * Indicates the group of servers to which this node belongs. If defined, mod_cluster will always attempt to failover a
@@ -62,4 +65,17 @@ public interface NodeConfiguration {
      * Name of the balancer.
      */
     String getBalancer();
+
+    /** Returns a Map of InetSocketAddress keys and values of how to translate the Connector to the Host and Port we
+     * want to advertise to via MCMP.
+     */
+    Map<InetSocketAddress,InetSocketAddress> getPortMapSockets();
+
+    /**
+     * Returns the Port Map in the string format.
+     * $LISTEN_HOST:$LISTEN_PORT=$EXPOSED_HOST:$EXPOSED_PORT
+     */
+    String getPortMap();
+
+
 }
