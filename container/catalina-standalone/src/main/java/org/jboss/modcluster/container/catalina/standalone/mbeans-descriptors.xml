@@ -94,6 +94,10 @@
                description="Maximum number of attempts to send the request to the backend server"
                type="int"/>
 
+      <attribute name="portMap"
+                 description="Mapping of listening host/port to exposed host/port combinations"
+                 type="java.lang.String"/>
+
     <operation name="refresh"
                description="Refresh configuration"
                impact="ACTION"

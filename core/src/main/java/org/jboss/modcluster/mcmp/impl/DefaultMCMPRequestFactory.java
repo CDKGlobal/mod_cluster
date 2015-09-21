@@ -23,6 +23,7 @@ package org.jboss.modcluster.mcmp.impl;
 
 import java.net.Inet6Address;
 
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -69,24 +70,40 @@ public class DefaultMCMPRequestFactory implements MCMPRequestFactory {
         // If address was specified as a host name, we would prefer it
         // toString() will not perform reverse dns lookup
         // so send host name portion, if it exists
+        String listenAddress = null;
         String address = connector.getAddress().toString();
         int index = address.indexOf("/");
         if (connector.getAddress() instanceof Inet6Address) {
             /* IPv6 address require a [] */
-            String saddr = null;
             if (index > 0) {
-                saddr = address.substring(0, index); // Name.
+                listenAddress = address.substring(0, index); // Name.
             } else {
-                saddr = "[";
-                saddr = saddr.concat(address.substring(1));
-                saddr = saddr.concat("]");
+                listenAddress  = "[";
+                listenAddress = listenAddress.concat(address.substring(1));
+                listenAddress = listenAddress.concat("]");
             }
-            parameters.put("Host", saddr);
         } else {
-            parameters.put("Host", (index > 0) ? address.substring(0, index) : address.substring(1));
+            if (index > 0) {
+                listenAddress = address.substring(0, index);
+            } else {
+                listenAddress = address.substring(1);
+            }
         }
 
-        parameters.put("Port", String.valueOf(connector.getPort()));
+        int listenPort = connector.getPort();
+
+        Map<InetSocketAddress,InetSocketAddress> portMapSockets = nodeConfig.getPortMapSockets();
+        InetSocketAddress listenSocket = new InetSocketAddress(listenAddress, listenPort);
+        InetSocketAddress exposedSocket = portMapSockets.get(listenSocket);
+        InetSocketAddress advertisedSocket;
+        if (exposedSocket != null) {
+            advertisedSocket = exposedSocket;
+        } else {
+            advertisedSocket = listenSocket;
+        }
+
+        parameters.put("Host", advertisedSocket.getHostString());
+        parameters.put("Port", String.valueOf(advertisedSocket.getPort()));
         parameters.put("Type", connector.getType().toString());
 
         // Other configuration parameters
